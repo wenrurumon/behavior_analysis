@@ -1,8 +1,9 @@
 
 rm(list=ls())
+setwd('E:\\qianji\\libangqi\\粉丝数据\\粉丝数据')
 
 #########################
-# Data Input
+# Follow Matrix
 #########################
 
 fans1 <- read.csv('fans.follow.count.txt',encoding='UTF-8',header=F)
@@ -29,13 +30,25 @@ fans1 <- fans1[match(id,fans1[,1]),]
 info <- info[names(info)%in%id]
 like <- like[names(like)%in%id]
 
-###########################
-# Processing
-###########################
-
 like.table <- table(unlist(like))
 likes <- names(which(like.table>30))
-
 like.mat <- sapply(like,function(x){likes%in%x})+0
 rownames(like.mat) <- likes
+follow <- like.mat
 
+##########################
+#KOL
+##########################
+
+kol <- readLines("sup.txt", encoding='UTF-8')
+kol <- strsplit(kol, "<|>", fixed = TRUE)
+kol <- t(sapply(kol,function(x){
+  if(length(x)==4){x <- c(x,NA)}
+  x
+}))
+
+kol.name <- do.call(rbind,strsplit(rownames(like.mat),','))
+kol <- data.frame(kol.name,kol[match(kol.name[,1],paste(kol[,1])),-1])
+colnames(kol) <- c('uid','kolname','follow','fans','countwb','intro')
+
+save(follow,kol,file='E:\\qianji\\libangqi\\data4wb.rda')
