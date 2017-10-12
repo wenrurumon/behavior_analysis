@@ -27,11 +27,14 @@ qpca <- function(A,scale=T,rank=0){
 }
 qpca2 <- function(A,prop1=0.9){
   rank1 <- qpca(A,T,0)$prop
-  qpca(A,T,rank=which(rank1>=0.9)[1])
+  qpca(A,T,rank=which(rank1>=prop1)[1])
 }
 
 follow <- follow[,colSums(follow)>0]
-follow.pca <- qpca2(follow,0.8)
+follow.pca <- qpca2(t(follow),0.8)
+# f2 <- follow.pca$X[,1:which(follow.pca$prop>=0.9)[1],drop=F]
+f2 <- follow.pca$Z
+rownames(f2) <- colnames(follow)
 
 ############################
 #SIMLR
@@ -40,31 +43,26 @@ follow.pca <- qpca2(follow,0.8)
 library(SIMLR)
 library(data.table)
 library(igraph)
-clust.simlr <- SIMLR(X = (follow), c = 20, cores.ratio = 0)
+clust.simlr <- SIMLR(X = f2, c = 20, cores.ratio = 0)
 save(clust.simlr,file='rlt_simlr_follow.rda')
 
-
 ############################
-#
+#Clustering Output
 ############################
 
-followmap <- dplyr::filter(reshape::melt(follow),value!=0)
-colnames(followmap) <- c('kol','follow','value')
-kolmat <- sqldf::sqldf(
-  'select a.kol as akol, b.kol as bkol, 
-  sum(a.value) as aval, sum(b.value) as bval
-  from followmap a 
-  left join followmap b 
-  on a.follow=b.follow
-  group by akol, bkol'
-)
+rm(list=ls())
+setwd('E:\\qianji\\libangqi\\')
+load('data4wb.rda')
+load('rlt_simlr_follow.rda')
+clust <- clust.simlr$y$cluster
 
-kollist <- unique(kolmat$akol)
-kolmat2 <- sapply(kollist,function(koli){
-  x <- dplyr::filter(kolmat,akol==koli)[,2:3]
-  x[match(kollist,x$bkol),2]
+test <- sapply(1:20,function(i){
+  rowMeans(follow[,clust.simlr$y$cluster==i,drop=F])
 })
-kolmat2[is.na(kolmat2)] <- 0
-rownames(kolmat2) <- colnames(kolmat2)
+test <- test/rowMeans(follow)
 
-test <- igraph::graph_from_adjacency_matrix(kolmat2)
+out <- lapply(1:20,function(i){
+  x <- test[test[,i]>1,i]
+  cbind(sort(x,T))
+})
+
